@@ -73,6 +73,19 @@ async function run() {
 
       res.send(result);
     });
+
+    // delete pet
+    app.delete("/pets/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const query = {
+        _id: new ObjectId(id),
+      };
+
+      const result = await petsCollection.deleteOne(query);
+
+      res.send(result);
+    });
     await client.connect();
     console.log("MongoDB Connected Successfully");
   } catch (error) {
