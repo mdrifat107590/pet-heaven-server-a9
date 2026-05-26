@@ -114,6 +114,19 @@ async function run() {
 
       res.send(result);
     });
+
+    // my adoption request api
+    app.get("/requests", async (req, res) => {
+      const email = req.query.email;
+
+      const query = {
+        requesterEmail: email,
+      };
+
+      const result = await requestsCollection.find(query).toArray();
+
+      res.send(result);
+    });
     await client.connect();
     console.log("MongoDB Connected Successfully");
   } catch (error) {
