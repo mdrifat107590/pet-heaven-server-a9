@@ -33,6 +33,7 @@ async function run() {
         const result = await petsCollection.insertOne(petData);
         res.send({
           success: true,
+          result,
         });
       } catch (error) {
         res.send({
@@ -40,6 +41,12 @@ async function run() {
           message: error.message,
         });
       }
+    });
+    // get all pets
+    app.get("/pets", async (req, res) => {
+      const result = await petsCollection.find().toArray();
+
+      res.send(result);
     });
 
     await client.connect();
