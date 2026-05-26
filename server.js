@@ -140,7 +140,32 @@ async function run() {
     });
 
     app.get("/pets", async (req, res) => {
-      const result = await petsCollection.find().toArray();
+      const search = req.query.search || "";
+
+      const species = req.query.species || "";
+
+      const query = {};
+
+      if (search) {
+        query.petName = {
+          $regex: search,
+
+          $options: "i",
+        };
+      }
+
+      if (species) {
+        const speciesArray = species.split(",");
+
+        query.species = {
+          $in: speciesArray,
+        };
+      }
+
+      const result = await petsCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
 
       res.send(result);
     });
