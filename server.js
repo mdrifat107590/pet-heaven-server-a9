@@ -127,6 +127,130 @@ async function run() {
 
       res.send(result);
     });
+
+    app.get("/requests/check", async (req, res) => {
+      const { petId, email } = req.query;
+
+      const query = {
+        petId,
+        requesterEmail: email,
+      };
+
+      const existingRequest = await requestsCollection.findOne(query);
+
+      res.send({
+        exists: !!existingRequest,
+      });
+    });
+
+    app.get("/pet-requests/:id", async (req, res) => {
+      const petId = req.params.id;
+
+      const result = await requestsCollection
+        .find({
+          petId: petId,
+        })
+        .toArray();
+
+      res.send(result);
+    });
+
+    app.patch("/requests/status/:id", async (req, res) => {
+      const id = req.params.id;
+      const { status, petId } = req.body;
+      const existingRequest = await requestsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      if (!existingRequest) {
+        return res.send({
+          message: "Request not found",
+        });
+      }
+      if (existingRequest.status === "approved") {
+        return res.send({
+          message: "Request already approved",
+        });
+      }
+      if (existingRequest.status === "rejected") {
+        return res.send({
+          message: "Request already rejected",
+        });
+      }
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const updatedDoc = {
+        $set: {
+          status,
+        },
+      };
+
+      const result = await requestsCollection.updateOne(query, updatedDoc);
+
+      if (status === "approved") {
+        await petsCollection.updateOne(
+          {
+            _id: new ObjectId(petId),
+          },
+
+          {
+            $set: {
+              status: "adopted",
+            },
+          },
+        );
+
+        await requestsCollection.updateMany(
+          {
+            petId: petId,
+
+            status: "pending",
+          },
+
+          {
+            $set: {
+              status: "rejected",
+            },
+          },
+        );
+      }
+
+      res.send(result);
+    });
+
+    app.delete("/requests/:id", async (req, res) => {
+      const id = req.params.id;
+      const request = await requestsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      if (request?.status === "approved") {
+        return res.send({
+          message: "Approved request cannot be canceled",
+        });
+      }
+      const result = await requestsCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+
+    // featured pet
+
+    app.get("/featured-pets", async (req, res) => {
+        const query = {
+          status: "Available",
+        };
+        const options = {
+          sort: {
+            _id: -1,
+          },
+          limit: 6,
+        };
+        const result = await petsCollection.find(query, options).toArray();
+        res.send(result);
+      },
+    );
+
     await client.connect();
     console.log("MongoDB Connected Successfully");
   } catch (error) {
