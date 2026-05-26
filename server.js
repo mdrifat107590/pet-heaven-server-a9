@@ -61,6 +61,18 @@ async function run() {
       res.send(result);
     });
 
+    // my listing api
+    app.get("/my-pets", async (req, res) => {
+      const email = req.query.email;
+
+      const query = {
+        ownerEmail: email,
+      };
+
+      const result = await petsCollection.find(query).toArray();
+
+      res.send(result);
+    });
     await client.connect();
     console.log("MongoDB Connected Successfully");
   } catch (error) {
