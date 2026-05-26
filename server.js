@@ -1,21 +1,73 @@
 const express = require("express");
+
 const cors = require("cors");
+
 const dotenv = require("dotenv");
+
+const cookieParser = require("cookie-parser");
+
+const jwt = require("jsonwebtoken");
+
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+
 dotenv.config();
+
 const app = express();
-app.use(cors());
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+
+    credentials: true,
+  }),
+);
+
+app.use(cookieParser());
 
 app.use(express.json());
+
 const port = process.env.PORT || 5000;
+
 const uri = process.env.MONGO_URI;
+
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
+
     strict: true,
+
     deprecationErrors: true,
   },
 });
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).send({
+      message: "unauthorized access",
+    });
+  }
+
+  jwt.verify(
+    token,
+
+    process.env.JWT_SECRET,
+
+    (error, decoded) => {
+      if (error) {
+        return res.status(401).send({
+          message: "unauthorized access",
+        });
+      }
+
+      req.decoded = decoded;
+
+      next();
+    },
+  );
+};
+
 async function run() {
   try {
     const database = client.db("pawHavenDB");
@@ -26,30 +78,74 @@ async function run() {
     app.get("/", (req, res) => {
       res.send("PawHaven Server Running...");
     });
-    // post a pet
-    app.post("/pets", async (req, res) => {
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+
+      const token = jwt.sign(
+        user,
+
+        process.env.JWT_SECRET,
+
+        {
+          expiresIn: "7d",
+        },
+      );
+
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+
+          secure: false,
+
+          sameSite: "strict",
+        })
+
+        .send({
+          success: true,
+        });
+    });
+
+    app.post("/logout", async (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: false,
+          sameSite: "strict",
+        })
+
+        .send({
+          success: true,
+        });
+    });
+
+    app.post("/pets", verifyToken, async (req, res) => {
       try {
         const petData = req.body;
+
         const result = await petsCollection.insertOne(petData);
+
         res.send({
           success: true,
+
           result,
         });
       } catch (error) {
         res.send({
           success: false,
+
           message: error.message,
         });
       }
     });
-    // get all pets
+
     app.get("/pets", async (req, res) => {
       const result = await petsCollection.find().toArray();
 
       res.send(result);
     });
-    // single pet
-    app.get("/pets/:id", async (req, res) => {
+
+    app.get("/pets/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
 
       const query = {
@@ -61,9 +157,14 @@ async function run() {
       res.send(result);
     });
 
-    // my listing api
-    app.get("/my-pets", async (req, res) => {
+    app.get("/my-pets", verifyToken, async (req, res) => {
       const email = req.query.email;
+
+      if (email !== req.decoded.email) {
+        return res.status(403).send({
+          message: "forbidden access",
+        });
+      }
 
       const query = {
         ownerEmail: email,
@@ -74,8 +175,7 @@ async function run() {
       res.send(result);
     });
 
-    // delete pet
-    app.delete("/pets/:id", async (req, res) => {
+    app.delete("/pets/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
 
       const query = {
@@ -87,8 +187,7 @@ async function run() {
       res.send(result);
     });
 
-    // update pet api
-    app.patch("/pets/:id", async (req, res) => {
+    app.patch("/pets/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
 
       const updatedData = req.body;
@@ -106,79 +205,81 @@ async function run() {
       res.send(result);
     });
 
-    // adoption request api
-    app.post("/requests", async (req, res) => {
+    app.post("/requests", verifyToken, async (req, res) => {
       const requestData = req.body;
 
       const result = await requestsCollection.insertOne(requestData);
 
       res.send(result);
     });
-
-    // my adoption request api
-    app.get("/requests", async (req, res) => {
+    app.get("/requests", verifyToken, async (req, res) => {
       const email = req.query.email;
-
+      if (email !== req.decoded.email) {
+        return res.status(403).send({
+          message: "forbidden access",
+        });
+      }
       const query = {
         requesterEmail: email,
       };
-
       const result = await requestsCollection.find(query).toArray();
-
       res.send(result);
     });
 
     app.get("/requests/check", async (req, res) => {
       const { petId, email } = req.query;
-
       const query = {
         petId,
         requesterEmail: email,
       };
 
       const existingRequest = await requestsCollection.findOne(query);
-
       res.send({
         exists: !!existingRequest,
       });
     });
 
-    app.get("/pet-requests/:id", async (req, res) => {
+    app.get("/pet-requests/:id", verifyToken, async (req, res) => {
       const petId = req.params.id;
 
       const result = await requestsCollection
         .find({
-          petId: petId,
+          petId,
         })
         .toArray();
 
       res.send(result);
     });
 
-    app.patch("/requests/status/:id", async (req, res) => {
+    app.patch("/requests/status/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const { status, petId } = req.body;
       const existingRequest = await requestsCollection.findOne({
         _id: new ObjectId(id),
       });
+
       if (!existingRequest) {
         return res.send({
           message: "Request not found",
         });
       }
+
       if (existingRequest.status === "approved") {
         return res.send({
           message: "Request already approved",
         });
       }
+
       if (existingRequest.status === "rejected") {
         return res.send({
           message: "Request already rejected",
         });
       }
+
       const query = {
         _id: new ObjectId(id),
       };
+
       const updatedDoc = {
         $set: {
           status,
@@ -202,7 +303,7 @@ async function run() {
 
         await requestsCollection.updateMany(
           {
-            petId: petId,
+            petId,
 
             status: "pending",
           },
@@ -218,7 +319,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/requests/:id", async (req, res) => {
+    app.delete("/requests/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const request = await requestsCollection.findOne({
         _id: new ObjectId(id),
@@ -234,29 +335,27 @@ async function run() {
       res.send(result);
     });
 
-    // featured pet
-
     app.get("/featured-pets", async (req, res) => {
-        const query = {
-          status: "Available",
-        };
-        const options = {
-          sort: {
-            _id: -1,
-          },
-          limit: 6,
-        };
-        const result = await petsCollection.find(query, options).toArray();
-        res.send(result);
-      },
-    );
+      const result = await petsCollection
+        .find({
+          status: "available",
+        })
+        .sort({
+          _id: -1,
+        })
+        .limit(6)
+        .toArray();
+      res.send(result);
+    });
 
     await client.connect();
+
     console.log("MongoDB Connected Successfully");
   } catch (error) {
     console.log(error);
   }
 }
+
 run();
 
 app.listen(port, () => {
