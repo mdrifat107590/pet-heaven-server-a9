@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -45,6 +45,18 @@ async function run() {
     // get all pets
     app.get("/pets", async (req, res) => {
       const result = await petsCollection.find().toArray();
+
+      res.send(result);
+    });
+    // single pet
+    app.get("/pets/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const query = {
+        _id: new ObjectId(id),
+      };
+
+      const result = await petsCollection.findOne(query);
 
       res.send(result);
     });
