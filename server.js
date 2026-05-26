@@ -86,6 +86,25 @@ async function run() {
 
       res.send(result);
     });
+
+    // update pet api
+    app.patch("/pets/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const updatedData = req.body;
+
+      const query = {
+        _id: new ObjectId(id),
+      };
+
+      const updatedDoc = {
+        $set: updatedData,
+      };
+
+      const result = await petsCollection.updateOne(query, updatedDoc);
+
+      res.send(result);
+    });
     await client.connect();
     console.log("MongoDB Connected Successfully");
   } catch (error) {
