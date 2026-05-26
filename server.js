@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const { MongoClient,ServerApiVersion  } = require("mongodb");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -26,6 +26,22 @@ async function run() {
     app.get("/", (req, res) => {
       res.send("PawHaven Server Running...");
     });
+    // post a pet
+    app.post("/pets", async (req, res) => {
+      try {
+        const petData = req.body;
+        const result = await petsCollection.insertOne(petData);
+        res.send({
+          success: true,
+        });
+      } catch (error) {
+        res.send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
     await client.connect();
     console.log("MongoDB Connected Successfully");
   } catch (error) {
