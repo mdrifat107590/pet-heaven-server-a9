@@ -105,6 +105,15 @@ async function run() {
 
       res.send(result);
     });
+
+    // adoption request api
+    app.post("/requests", async (req, res) => {
+      const requestData = req.body;
+
+      const result = await requestsCollection.insertOne(requestData);
+
+      res.send(result);
+    });
     await client.connect();
     console.log("MongoDB Connected Successfully");
   } catch (error) {
