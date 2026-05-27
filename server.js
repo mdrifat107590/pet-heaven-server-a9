@@ -16,7 +16,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173"],
 
     credentials: true,
   }),
@@ -41,7 +41,7 @@ const client = new MongoClient(uri, {
 });
 
 const verifyToken = (req, res, next) => {
-  const token = req.cookies.token;
+  const token = req.cookies?.token;
 
   if (!token) {
     return res.status(401).send({
@@ -71,8 +71,11 @@ const verifyToken = (req, res, next) => {
 async function run() {
   try {
     const database = client.db("pawHavenDB");
+
     const petsCollection = database.collection("pets");
+
     const requestsCollection = database.collection("requests");
+
     const usersCollection = database.collection("users");
 
     app.get("/", (req, res) => {
@@ -98,7 +101,7 @@ async function run() {
 
           secure: false,
 
-          sameSite: "strict",
+          sameSite: "lax",
         })
 
         .send({
@@ -110,8 +113,10 @@ async function run() {
       res
         .clearCookie("token", {
           httpOnly: true,
+
           secure: false,
-          sameSite: "strict",
+
+          sameSite: "lax",
         })
 
         .send({
@@ -125,11 +130,7 @@ async function run() {
 
         const result = await petsCollection.insertOne(petData);
 
-        res.send({
-          success: true,
-
-          result,
-        });
+        res.send(result);
       } catch (error) {
         res.send({
           success: false,
@@ -163,8 +164,13 @@ async function run() {
       }
 
       const result = await petsCollection
+
         .find(query)
-        .sort({ _id: -1 })
+
+        .sort({
+          _id: -1,
+        })
+
         .toArray();
 
       res.send(result);
@@ -205,6 +211,8 @@ async function run() {
 
       const query = {
         _id: new ObjectId(id),
+
+        ownerEmail: req.decoded.email,
       };
 
       const result = await petsCollection.deleteOne(query);
@@ -219,6 +227,8 @@ async function run() {
 
       const query = {
         _id: new ObjectId(id),
+
+        ownerEmail: req.decoded.email,
       };
 
       const updatedDoc = {
@@ -237,28 +247,36 @@ async function run() {
 
       res.send(result);
     });
+
     app.get("/requests", verifyToken, async (req, res) => {
       const email = req.query.email;
+
       if (email !== req.decoded.email) {
         return res.status(403).send({
           message: "forbidden access",
         });
       }
+
       const query = {
         requesterEmail: email,
       };
+
       const result = await requestsCollection.find(query).toArray();
+
       res.send(result);
     });
 
     app.get("/requests/check", async (req, res) => {
       const { petId, email } = req.query;
+
       const query = {
         petId,
+
         requesterEmail: email,
       };
 
       const existingRequest = await requestsCollection.findOne(query);
+
       res.send({
         exists: !!existingRequest,
       });
@@ -268,9 +286,11 @@ async function run() {
       const petId = req.params.id;
 
       const result = await requestsCollection
+
         .find({
           petId,
         })
+
         .toArray();
 
       res.send(result);
@@ -278,7 +298,9 @@ async function run() {
 
     app.patch("/requests/status/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
+
       const { status, petId } = req.body;
+
       const existingRequest = await requestsCollection.findOne({
         _id: new ObjectId(id),
       });
@@ -346,17 +368,21 @@ async function run() {
 
     app.delete("/requests/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
+
       const request = await requestsCollection.findOne({
         _id: new ObjectId(id),
       });
+
       if (request?.status === "approved") {
         return res.send({
           message: "Approved request cannot be canceled",
         });
       }
+
       const result = await requestsCollection.deleteOne({
         _id: new ObjectId(id),
       });
+
       res.send(result);
     });
 
@@ -379,6 +405,7 @@ async function run() {
 
       res.send(result);
     });
+
     await client.connect();
 
     console.log("MongoDB Connected Successfully");
