@@ -362,17 +362,23 @@ async function run() {
 
     app.get("/featured-pets", async (req, res) => {
       const result = await petsCollection
+
         .find({
-          status: "available",
+          status: {
+            $in: ["available", "Available"],
+          },
         })
+
         .sort({
           _id: -1,
         })
+
         .limit(6)
+
         .toArray();
+
       res.send(result);
     });
-
     await client.connect();
 
     console.log("MongoDB Connected Successfully");
