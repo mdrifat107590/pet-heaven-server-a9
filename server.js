@@ -97,9 +97,9 @@ async function run() {
         .cookie("token", token, {
           httpOnly: true,
 
-          secure: false,
+          secure: true,
 
-          sameSite: "lax",
+          sameSite: "none",
         })
 
         .send({
@@ -112,9 +112,9 @@ async function run() {
         .clearCookie("token", {
           httpOnly: true,
 
-          secure: false,
+          secure: true,
 
-          sameSite: "lax",
+          sameSite: "none",
         })
 
         .send({
