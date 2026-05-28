@@ -76,8 +76,6 @@ async function run() {
 
     const requestsCollection = database.collection("requests");
 
-    const usersCollection = database.collection("users");
-
     app.get("/", (req, res) => {
       res.send("PawHaven Server Running...");
     });
