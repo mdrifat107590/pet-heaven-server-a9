@@ -283,6 +283,16 @@ async function run() {
     app.get("/pet-requests/:id", verifyToken, async (req, res) => {
       const petId = req.params.id;
 
+      const pet = await petsCollection.findOne({
+        _id: new ObjectId(petId),
+      });
+
+      if (pet?.ownerEmail !== req.decoded.email) {
+        return res.status(403).send({
+          message: "forbidden access",
+        });
+      }
+
       const result = await requestsCollection
 
         .find({
@@ -370,6 +380,12 @@ async function run() {
       const request = await requestsCollection.findOne({
         _id: new ObjectId(id),
       });
+
+      if (request?.requesterEmail !== req.decoded.email) {
+        return res.status(403).send({
+          message: "forbidden access",
+        });
+      }
 
       if (request?.status === "approved") {
         return res.send({
